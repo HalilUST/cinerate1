@@ -153,19 +153,33 @@
   }
 
   /* STAR RATING INPUT */
-  .star-input { display:flex; gap:2px; margin-bottom: 14px; }
+  .star-input { display:flex; gap:4px; margin-bottom:14px; }
   .star-wrap {
-    position: relative; display:inline-block;
-    font-size: 32px; cursor: pointer; user-select: none;
+    position:relative; display:inline-block; width:36px; height:36px;
+    cursor:pointer; user-select:none;
     transition: transform .12s cubic-bezier(.34,1.56,.64,1);
+    font-size:0;
   }
-  .star-wrap:hover { transform: scale(1.25); }
+  .star-wrap:hover { transform: scale(1.28); }
+  /* boş yıldız (arka plan) */
+  .star-wrap .s-empty {
+    position:absolute; inset:0;
+    font-size:34px; line-height:36px; text-align:center;
+    color:#3a3a5c;
+  }
+  /* dolu yıldız (clip ile yarı ya da tam göster) */
+  .star-wrap .s-fill {
+    position:absolute; inset:0;
+    font-size:34px; line-height:36px; text-align:center;
+    color:#f5c518;
+    overflow:hidden;
+    width:100%; /* JS ile %50 veya %100 yapılır */
+  }
   .star-half-left, .star-half-right {
-    position:absolute; top:0; height:100%; width:50%;
-    cursor:pointer;
+    position:absolute; top:0; height:100%; width:50%; z-index:2;
   }
-  .star-half-left  { left:0; }
-  .star-half-right { right:0; }
+  .star-half-left  { left:0; cursor:pointer; }
+  .star-half-right { right:0; cursor:pointer; }
 
   /* BUTTONS */
   .btn {
@@ -294,19 +308,21 @@
 
   /* ADMİN GİRİŞ MODAL */
   .modal-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,.85);
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,.88);
     display:flex; align-items:center; justify-content:center;
-    z-index:200; backdrop-filter:blur(6px);
+    z-index:9999; backdrop-filter:blur(8px);
   }
   .modal-box {
-    background:var(--surface); border:1px solid rgba(232,48,90,.3);
+    background:var(--surface); border:1px solid rgba(232,48,90,.4);
     border-radius:20px; padding:36px 32px; width:360px; max-width:92vw;
-    box-shadow: 0 24px 64px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05);
-    animation: modalIn .25s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 24px 64px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.05);
+    animation: modalIn .28s cubic-bezier(.34,1.56,.64,1);
+    position:relative; z-index:10000;
   }
   @keyframes modalIn {
-    from { opacity:0; transform: scale(.88) translateY(20px); }
-    to   { opacity:1; transform: scale(1)  translateY(0); }
+    from { opacity:0; transform: scale(.85) translateY(24px); }
+    to   { opacity:1; transform: scale(1)   translateY(0); }
   }
   .modal-title { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--accent); margin-bottom:20px; letter-spacing:2px; }
   .modal-input {
@@ -517,22 +533,22 @@ async function renderDetail() {
   const yildizStr = n => {
     let s = "";
     for(let i=1;i<=5;i++){
-      if(n>=i) s+="⭐";
-      else if(n>=i-0.5) s+="🌟";
-      else s+="☆";
+      const w = n>=i ? "100%" : n>=i-0.5 ? "50%" : "0%";
+      s += `<span style="position:relative;display:inline-block;width:22px;height:22px;font-size:0">
+        <span style="position:absolute;inset:0;font-size:20px;line-height:22px;text-align:center;color:#3a3a5c">★</span>
+        <span style="position:absolute;inset:0;font-size:20px;line-height:22px;text-align:center;color:#f5c518;overflow:hidden;width:${w}">★</span>
+      </span>`;
     }
     return s;
   };
 
-  // Puan yıldızları - yarım yıldız destekli
+  // Puan yıldızları - gerçek yarım yıldız (CSS clip)
   const puanHtml = [1,2,3,4,5].map(n=>{
     const deger = seciliPuan;
-    let icon;
-    if (deger >= n)        icon = "⭐";
-    else if (deger >= n-0.5) icon = "🌟";
-    else                   icon = "☆";
+    const fillW = deger >= n ? "100%" : deger >= n-0.5 ? "50%" : "0%";
     return `<span class="star-wrap" id="star_${n}">
-      ${icon}
+      <span class="s-empty">★</span>
+      <span class="s-fill" id="sfill_${n}" style="width:${fillW}">★</span>
       <span class="star-half-left"
         onmouseenter="starHover(${n}-0.5)"
         onmouseleave="starHover(0)"
@@ -670,16 +686,13 @@ function starHover(n) {
   hoverPuan = n;
   const val = n || seciliPuan;
   for (let i=1;i<=5;i++) {
-    const s = document.getElementById("star_"+i);
-    if (!s) continue;
-    let icon;
-    if (val >= i)          icon = "⭐";
-    else if (val >= i-0.5) icon = "🌟";
-    else                   icon = "☆";
-    // sadece text node güncelle (span içindeki ilk text)
-    const txt = s.childNodes[0];
-    if (txt) txt.textContent = "\n      " + icon + "\n      ";
-    s.style.transform = val >= i-0.5 ? "scale(1.25)" : "scale(1)";
+    const fill = document.getElementById("sfill_"+i);
+    const wrap = document.getElementById("star_"+i);
+    if (!fill || !wrap) continue;
+    if (val >= i)          fill.style.width = "100%";
+    else if (val >= i-0.5) fill.style.width = "50%";
+    else                   fill.style.width = "0%";
+    wrap.style.transform = val >= i-0.5 ? "scale(1.28)" : "scale(1)";
   }
 }
 

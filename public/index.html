@@ -345,13 +345,14 @@
       <span class="user-chip" id="userChip"></span>
     </div>
   </div>
+</header>
 
-<!-- Admin Giriş Modal -->
-<div class="modal-overlay" id="adminModal" style="display:none">
+<!-- Admin Giriş Modal — header DIŞINDA, body'e direkt bağlı -->
+<div class="modal-overlay" id="adminModal" style="display:none" onclick="if(event.target===this)adminModalKapat()">
   <div class="modal-box">
     <div class="modal-title">👑 Admin Girişi</div>
-    <input class="modal-input" id="adminUser" type="text" placeholder="Kullanıcı adı">
-    <input class="modal-input" id="adminPass" type="password" placeholder="Şifre">
+    <input class="modal-input" id="adminUser" type="text" placeholder="Kullanıcı adı" onkeydown="if(event.key==='Enter')adminGirisYap()">
+    <input class="modal-input" id="adminPass" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')adminGirisYap()">
     <div id="adminErr" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none">Kullanıcı adı veya şifre hatalı!</div>
     <div style="display:flex;gap:10px">
       <button class="btn btn-primary" style="flex:1" onclick="adminGirisYap()">Giriş Yap</button>
@@ -359,7 +360,6 @@
     </div>
   </div>
 </div>
-</header>
 
 <main>
   <div class="film-grid" id="filmGrid"></div>

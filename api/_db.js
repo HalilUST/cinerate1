@@ -21,6 +21,22 @@ function getPool() {
 
 async function initDB() {
   const db = getPool();
+
+  // Mevcut puanlar tablosundaki puan kolonunu NUMERIC'e güncelle (eğer SMALLINT ise)
+  await db.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='puanlar' AND column_name='puan' AND data_type='smallint'
+      ) THEN
+        ALTER TABLE puanlar ALTER COLUMN puan TYPE NUMERIC(3,1);
+        ALTER TABLE puanlar DROP CONSTRAINT IF EXISTS puanlar_puan_check;
+        ALTER TABLE puanlar ADD CONSTRAINT puanlar_puan_check CHECK (puan BETWEEN 0.5 AND 5);
+      END IF;
+    END$$;
+  `).catch(()=>{});
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS filmler (
       id      INT PRIMARY KEY,

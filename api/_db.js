@@ -62,6 +62,14 @@ async function initDB() {
       puan     NUMERIC(3,1) NOT NULL CHECK (puan BETWEEN 0.5 AND 5),
       UNIQUE (film_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS yanitlar (
+      id         SERIAL PRIMARY KEY,
+      yorum_id   INT NOT NULL REFERENCES yorumlar(id) ON DELETE CASCADE,
+      user_id    VARCHAR(100) NOT NULL,
+      metin      VARCHAR(1000) NOT NULL,
+      tarih      TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 
   const filmler = [

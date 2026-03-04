@@ -153,13 +153,19 @@
   }
 
   /* STAR RATING INPUT */
-  .star-input { display:flex; gap:6px; margin-bottom: 14px; }
-  .star-input span {
-    font-size: 32px; cursor: pointer;
-    transition: transform .1s cubic-bezier(.34,1.56,.64,1);
-    user-select: none;
+  .star-input { display:flex; gap:2px; margin-bottom: 14px; }
+  .star-wrap {
+    position: relative; display:inline-block;
+    font-size: 32px; cursor: pointer; user-select: none;
+    transition: transform .12s cubic-bezier(.34,1.56,.64,1);
   }
-  .star-input span:hover, .star-input span.lit { transform: scale(1.3); }
+  .star-wrap:hover { transform: scale(1.25); }
+  .star-half-left, .star-half-right {
+    position:absolute; top:0; height:100%; width:50%;
+    cursor:pointer;
+  }
+  .star-half-left  { left:0; }
+  .star-half-right { right:0; }
 
   /* BUTTONS */
   .btn {
@@ -265,19 +271,78 @@
     color:#2ecc71; border-radius:6px; padding:3px 9px; font-weight:600;
   }
   .mode-badge.offline { background:rgba(245,197,24,.1); border-color:rgba(245,197,24,.3); color:var(--gold); }
+
+  /* ADMIN */
+  .admin-badge {
+    font-size:10px; font-weight:800; color:#fff;
+    background: linear-gradient(90deg,#f5c518,#ff6b35);
+    border-radius:5px; padding:2px 8px; margin-left:7px;
+    letter-spacing:1px; vertical-align:middle;
+  }
+  .admin-name { color:#f5c518 !important; text-shadow: 0 0 8px rgba(245,197,24,.4); }
+
+  /* YANIT */
+  .reply-box {
+    background: rgba(255,255,255,.03);
+    border-left: 2px solid var(--border);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 14px;
+    margin: 10px 0 4px 20px;
+  }
+  .reply-box .comment-username { font-size:13px; }
+  .reply-box .comment-text { font-size:13px; }
+
+  /* ADMİN GİRİŞ MODAL */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:200; backdrop-filter:blur(6px);
+  }
+  .modal-box {
+    background:var(--surface); border:1px solid rgba(232,48,90,.3);
+    border-radius:20px; padding:36px 32px; width:360px; max-width:92vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05);
+    animation: modalIn .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes modalIn {
+    from { opacity:0; transform: scale(.88) translateY(20px); }
+    to   { opacity:1; transform: scale(1)  translateY(0); }
+  }
+  .modal-title { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--accent); margin-bottom:20px; letter-spacing:2px; }
+  .modal-input {
+    width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; color:var(--text);
+    font-family:inherit; font-size:14px; outline:none; margin-bottom:12px;
+  }
+  .modal-input:focus { border-color:var(--accent); }
 </style>
 </head>
-<body>
+<body onkeydown="if(event.key==='Escape')adminModalKapat()">
 
 <header>
   <div class="logo">🎬 CineRate</div>
   <div style="display:flex;align-items:center;gap:14px">
     <span id="modeBadge" class="mode-badge offline">⚡ Demo Modu</span>
+    <button id="adminBtn" onclick="adminGirisAc()" style="background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);color:#f5c518;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit">👑 Admin</button>
     <div class="user-bar">
       <input id="usernameInput" type="text" placeholder="Kullanıcı adınız..." oninput="onUsernameChange(this.value)">
       <span class="user-chip" id="userChip"></span>
     </div>
   </div>
+
+<!-- Admin Giriş Modal -->
+<div class="modal-overlay" id="adminModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">👑 Admin Girişi</div>
+    <input class="modal-input" id="adminUser" type="text" placeholder="Kullanıcı adı">
+    <input class="modal-input" id="adminPass" type="password" placeholder="Şifre">
+    <div id="adminErr" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none">Kullanıcı adı veya şifre hatalı!</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="adminGirisYap()">Giriş Yap</button>
+      <button class="btn btn-secondary" onclick="adminModalKapat()">İptal</button>
+    </div>
+  </div>
+</div>
 </header>
 
 <main>
@@ -320,13 +385,19 @@ let _yorumlar = [];   // { id, filmId, userId, metin, tarih, beg, gunc }
 let _puanlar  = [];   // { id, filmId, userId, puan }
 let _sayac = 1;
 
+// ── CONFIG ─────────────────────────────────────────
+const ADMIN_USER = "fienix";
+const ADMIN_PASS = "fienix1905gs";
+
 // ── STATE ────────────────────────────────────────────────────
 let aktifFilmId = null;
 let kullanici   = "";
+let isAdmin     = false;
 let seciliPuan  = 0;
 let hoverPuan   = 0;
 let siralama    = "yeni";
 let duzenlemeId = null;
+let yanıtIdAcik = null;
 
 // ── TOAST ─────────────────────────────────────────────────────
 function toast(msg, tip="ok") {
@@ -443,43 +514,77 @@ async function renderDetail() {
     ? [...yorumlar].sort((a,b)=> new Date(b.tarih)-new Date(a.tarih))
     : [...yorumlar].sort((a,b)=> (b.beg||0)-(a.beg||0));
 
-  const yildizStr = n => "⭐".repeat(n) + "☆".repeat(5-n);
+  const yildizStr = n => {
+    let s = "";
+    for(let i=1;i<=5;i++){
+      if(n>=i) s+="⭐";
+      else if(n>=i-0.5) s+="🌟";
+      else s+="☆";
+    }
+    return s;
+  };
 
-  // Puan yıldızları
-  const puanHtml = [1,2,3,4,5].map(n=>`
-    <span id="star_${n}" class="star-span"
-      onmouseenter="starHover(${n})"
-      onmouseleave="starHover(0)"
-      onclick="selectStar(${n})"
-      style="font-size:32px;cursor:pointer;transition:transform .12s cubic-bezier(.34,1.56,.64,1);user-select:none">
-      ${n <= (seciliPuan) ? "⭐" : "☆"}
-    </span>`).join("");
+  // Puan yıldızları - yarım yıldız destekli
+  const puanHtml = [1,2,3,4,5].map(n=>{
+    const deger = seciliPuan;
+    let icon;
+    if (deger >= n)        icon = "⭐";
+    else if (deger >= n-0.5) icon = "🌟";
+    else                   icon = "☆";
+    return `<span class="star-wrap" id="star_${n}">
+      ${icon}
+      <span class="star-half-left"
+        onmouseenter="starHover(${n}-0.5)"
+        onmouseleave="starHover(0)"
+        onclick="selectStar(${n-0.5})"></span>
+      <span class="star-half-right"
+        onmouseenter="starHover(${n})"
+        onmouseleave="starHover(0)"
+        onclick="selectStar(${n})"></span>
+    </span>`;
+  }).join("");
 
   // Yorumlar
   const yorumlarHtml = yorumSirali.length === 0
     ? `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Henüz yorum yok</div><div class="empty-sub">İlk yorumu siz yapın!</div></div>`
     : yorumSirali.map(y => {
         const mine = y.userId === kullanici;
+        const isAdminYorum = y.userId === ADMIN_USER;
         const tarih = new Date(y.tarih).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
         const duzenleniyorMu = duzenlemeId === y.id;
+        const yanıtAcikMi = yanıtIdAcik === y.id;
+
+        // Yanıtlar
+        const yanıtlarHtml = (y.yanıtlar||[]).map(r => `
+          <div class="reply-box">
+            <div class="comment-user-row" style="margin-bottom:6px">
+              <div class="avatar" style="width:26px;height:26px;font-size:11px;background:linear-gradient(135deg,#f5c518,#ff6b35)">${r.userId[0].toUpperCase()}</div>
+              <div style="margin-left:8px">
+                <div class="comment-username admin-name">👑 ${r.userId}<span class="admin-badge">ADMİN</span></div>
+                <div class="comment-date">${new Date(r.tarih).toLocaleDateString("tr-TR",{day:"numeric",month:"long"})}</div>
+              </div>
+            </div>
+            <div class="comment-text">${r.metin}</div>
+          </div>`).join("");
+
         return `
           <div class="comment-card" id="comment_${y.id}">
             <div class="comment-top">
               <div class="comment-user-row">
-                <div class="avatar">${y.userId[0].toUpperCase()}</div>
+                <div class="avatar" style="${isAdminYorum?"background:linear-gradient(135deg,#f5c518,#ff6b35)":""}">${y.userId[0].toUpperCase()}</div>
                 <div>
-                  <div class="comment-username">
+                  <div class="comment-username ${isAdminYorum?"admin-name":""}">
                     ${y.userId}
-                    ${mine ? `<span class="mine-badge">Sen</span>` : ""}
+                    ${isAdminYorum ? `<span class="admin-badge">ADMİN</span>` : ""}
+                    ${mine && !isAdminYorum ? `<span class="mine-badge">Sen</span>` : ""}
                   </div>
                   <div class="comment-date">${tarih}${y.gunc?" · düzenlendi":""}</div>
                 </div>
               </div>
-              ${mine && !duzenleniyorMu ? `
-                <div style="display:flex;gap:7px">
-                  <button class="btn-ghost-blue" onclick="startEdit(${y.id})">✏️ Düzenle</button>
-                  <button class="btn-ghost-red"  onclick="deleteComment(${y.id},'${y.userId}')">🗑️ Sil</button>
-                </div>` : ""}
+              <div style="display:flex;gap:7px">
+                ${isAdmin ? `<button class="btn-ghost-red" onclick="deleteComment(${y.id},'${y.userId}')">🗑️ Sil</button>` : ""}
+                ${isAdmin ? `<button class="btn-ghost-blue" onclick="yanıtAc(${y.id})">↩️ Yanıtla</button>` : ""}
+              </div>
             </div>
             ${duzenleniyorMu
               ? `<textarea id="editTA" style="margin-bottom:10px">${y.metin}</textarea>
@@ -490,6 +595,15 @@ async function renderDetail() {
               : `<div class="comment-text">${y.metin}</div>
                  <button class="btn-like" onclick="likeComment(${y.id})">👍 ${y.beg||0}</button>`
             }
+            ${yanıtlarHtml}
+            ${yanıtAcikMi ? `
+              <div style="margin-top:12px">
+                <textarea id="yanıtTA_${y.id}" placeholder="Yanıtınızı yazın..." style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:inherit;font-size:13px;resize:vertical;min-height:70px;outline:none;box-sizing:border-box"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <button class="btn btn-primary" onclick="yanıtGonder(${y.id})">↩️ Yanıtı Gönder</button>
+                  <button class="btn btn-secondary" onclick="yanıtKapat()">İptal</button>
+                </div>
+              </div>` : ""}
           </div>`;
       }).join("");
 
@@ -554,16 +668,23 @@ async function renderDetail() {
 // ── STAR HOVER ───────────────────────────────────────────────
 function starHover(n) {
   hoverPuan = n;
+  const val = n || seciliPuan;
   for (let i=1;i<=5;i++) {
     const s = document.getElementById("star_"+i);
     if (!s) continue;
-    s.textContent = i <= (n||seciliPuan) ? "⭐" : "☆";
-    s.style.transform = i <= (n||seciliPuan) ? "scale(1.3)" : "scale(1)";
+    let icon;
+    if (val >= i)          icon = "⭐";
+    else if (val >= i-0.5) icon = "🌟";
+    else                   icon = "☆";
+    // sadece text node güncelle (span içindeki ilk text)
+    const txt = s.childNodes[0];
+    if (txt) txt.textContent = "\n      " + icon + "\n      ";
+    s.style.transform = val >= i-0.5 ? "scale(1.25)" : "scale(1)";
   }
 }
 
 function selectStar(n) {
-  seciliPuan = n;
+  seciliPuan = Number(n);
   starHover(0);
 }
 
@@ -612,12 +733,12 @@ async function submitHepsi() {
   await renderDetail();
 }
 
-// ── DELETE COMMENT ───────────────────────────────────────────
+// ── DELETE COMMENT (sadece admin) ───────────────────────────
 async function deleteComment(id, userId) {
-  if (userId !== kullanici) return toast("Sadece kendi yorumunuzu silebilirsiniz!", "err");
+  if (!isAdmin) return toast("Bu işlem için admin yetkisi gerekli!", "err");
 
   if (USE_API) {
-    try { await apiFetch("DELETE",`/api/yorumlar/${id}`,{userId:kullanici}); toast("Yorum silindi"); }
+    try { await apiFetch("DELETE",`/api/yorumlar/${id}`,{userId:ADMIN_USER}); toast("Yorum silindi"); }
     catch(e) { return toast(e.message,"err"); }
   } else {
     _yorumlar = _yorumlar.filter(y=>y.id!==id);
@@ -662,6 +783,83 @@ async function likeComment(id) {
     const y = _yorumlar.find(x=>x.id===id);
     if (y) y.beg = (y.beg||0)+1;
   }
+  renderDetail();
+}
+
+// ── ADMİN FONKSİYONLARI ─────────────────────────────────────
+function adminGirisAc() {
+  document.getElementById("adminModal").style.display = "flex";
+  document.getElementById("adminErr").style.display = "none";
+  document.getElementById("adminUser").value = "";
+  document.getElementById("adminPass").value = "";
+}
+
+function adminModalKapat() {
+  document.getElementById("adminModal").style.display = "none";
+}
+
+function adminGirisYap() {
+  const u = document.getElementById("adminUser").value.trim();
+  const p = document.getElementById("adminPass").value;
+  if (u === ADMIN_USER && p === ADMIN_PASS) {
+    isAdmin = true;
+    kullanici = ADMIN_USER;
+    document.getElementById("usernameInput").value = ADMIN_USER;
+    document.getElementById("usernameInput").disabled = true;
+    const chip = document.getElementById("userChip");
+    chip.textContent = "👑 " + ADMIN_USER;
+    chip.style.display = "inline";
+    chip.style.background = "rgba(245,197,24,.15)";
+    chip.style.borderColor = "rgba(245,197,24,.5)";
+    chip.style.color = "#f5c518";
+    document.getElementById("adminBtn").textContent = "👑 Admin ✓";
+    document.getElementById("adminBtn").style.opacity = "0.6";
+    document.getElementById("adminBtn").onclick = null;
+    adminModalKapat();
+    toast("Admin girişi başarılı 👑");
+    if (aktifFilmId) renderDetail();
+  } else {
+    document.getElementById("adminErr").style.display = "block";
+  }
+}
+
+// ── YANIT FONKSİYONLARI ──────────────────────────────────────
+function yanıtAc(yorumId) {
+  yanıtIdAcik = yanıtIdAcik === yorumId ? null : yorumId;
+  renderDetail();
+}
+
+function yanıtKapat() {
+  yanıtIdAcik = null;
+  renderDetail();
+}
+
+async function yanıtGonder(yorumId) {
+  const ta = document.getElementById("yanıtTA_" + yorumId);
+  if (!ta?.value.trim()) return toast("Yanıt boş olamaz!", "err");
+
+  // Yanıtları in-memory'de yorum nesnesine ekle
+  const yorum = _yorumlar.find(y => y.id === yorumId);
+  if (yorum) {
+    if (!yorum.yanıtlar) yorum.yanıtlar = [];
+    yorum.yanıtlar.push({
+      userId: ADMIN_USER,
+      metin: ta.value.trim(),
+      tarih: new Date().toISOString()
+    });
+  } else {
+    // API modunda yorumu bul ve yanıt ekle (demo: yorumları cache'le)
+    if (!window._yanıtlar) window._yanıtlar = {};
+    if (!window._yanıtlar[yorumId]) window._yanıtlar[yorumId] = [];
+    window._yanıtlar[yorumId].push({
+      userId: ADMIN_USER,
+      metin: ta.value.trim(),
+      tarih: new Date().toISOString()
+    });
+  }
+
+  yanıtIdAcik = null;
+  toast("Yanıt gönderildi ✓");
   renderDetail();
 }
 

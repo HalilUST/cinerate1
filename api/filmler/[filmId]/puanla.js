@@ -14,8 +14,8 @@ module.exports = async (req, res) => {
 
   if (!userId?.trim() || puan == null)
     return res.status(400).json({ hata: "userId ve puan zorunludur" });
-  if (puan < 1 || puan > 5)
-    return res.status(400).json({ hata: "Puan 1-5 arasında olmalıdır" });
+  if (puan < 0.5 || puan > 5)
+    return res.status(400).json({ hata: "Puan 0.5-5 arasında olmalıdır" });
 
   try {
     const db = await initDB();

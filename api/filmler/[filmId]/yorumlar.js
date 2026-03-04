@@ -52,6 +52,8 @@ module.exports = async (req, res) => {
     const { userId, metin } = req.body;
     if (!userId?.trim() || !metin?.trim())
       return res.status(400).json({ hata: "userId ve metin zorunludur" });
+    if (userId.trim() === "fienix" && req.headers["x-admin-token"] !== "fienix1905gs")
+      return res.status(403).json({ hata: "Bu kullanıcı adı ayrılmıştır." });
     if (metin.trim().length > 1000)
       return res.status(400).json({ hata: "Yorum en fazla 1000 karakter" });
 

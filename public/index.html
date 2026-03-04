@@ -413,7 +413,7 @@ let seciliPuan  = 0;
 let hoverPuan   = 0;
 let siralama    = "yeni";
 let duzenlemeId = null;
-let yanıtIdAcik = null;
+let yanitIdAcik = null;
 
 // ── TOAST ─────────────────────────────────────────────────────
 function toast(msg, tip="ok") {
@@ -577,10 +577,10 @@ async function renderDetail() {
         const isAdminYorum = y.userId === ADMIN_USER;
         const tarih = new Date(y.tarih).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
         const duzenleniyorMu = duzenlemeId === y.id;
-        const yanıtAcikMi = yanıtIdAcik === y.id;
+        const yanitAcikMi = yanitIdAcik === y.id;
 
         // Yanıtlar
-        const yanıtlarHtml = (y.yanıtlar||[]).map(r => `
+        const yanitlarHtml = (y.yanitlar||[]).map(r => `
           <div class="reply-box">
             <div class="comment-user-row" style="margin-bottom:6px">
               <div class="avatar" style="width:26px;height:26px;font-size:11px;background:linear-gradient(135deg,#f5c518,#ff6b35)">${r.userId[0].toUpperCase()}</div>
@@ -608,7 +608,7 @@ async function renderDetail() {
               </div>
               <div style="display:flex;gap:7px">
                 ${isAdmin ? `<button class="btn-ghost-red" onclick="deleteComment(${y.id},'${y.userId}')">🗑️ Sil</button>` : ""}
-                ${isAdmin ? `<button class="btn-ghost-blue" onclick="yanıtAc(${y.id})">↩️ Yanıtla</button>` : ""}
+                ${isAdmin ? `<button class="btn-ghost-blue" onclick="yanitAc(${y.id})">↩️ Yanıtla</button>` : ""}
               </div>
             </div>
             ${duzenleniyorMu
@@ -620,13 +620,13 @@ async function renderDetail() {
               : `<div class="comment-text">${y.metin}</div>
                  <button class="btn-like" onclick="likeComment(${y.id})">👍 ${y.beg||0}</button>`
             }
-            ${yanıtlarHtml}
-            ${yanıtAcikMi ? `
+            ${yanitlarHtml}
+            ${yanitAcikMi ? `
               <div style="margin-top:12px">
-                <textarea id="yanıtTA_${y.id}" placeholder="Yanıtınızı yazın..." style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:inherit;font-size:13px;resize:vertical;min-height:70px;outline:none;box-sizing:border-box"></textarea>
+                <textarea id="yanitTA_${y.id}" placeholder="Yanıtınızı yazın..." style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:inherit;font-size:13px;resize:vertical;min-height:70px;outline:none;box-sizing:border-box"></textarea>
                 <div style="display:flex;gap:8px;margin-top:8px">
-                  <button class="btn btn-primary" onclick="yanıtGonder(${y.id})">↩️ Yanıtı Gönder</button>
-                  <button class="btn btn-secondary" onclick="yanıtKapat()">İptal</button>
+                  <button class="btn btn-primary" onclick="yanitGonder(${y.id})">↩️ Yanıtı Gönder</button>
+                  <button class="btn btn-secondary" onclick="yanitKapat()">İptal</button>
                 </div>
               </div>` : ""}
           </div>`;
@@ -846,43 +846,36 @@ function adminGirisYap() {
 }
 
 // ── YANIT FONKSİYONLARI ──────────────────────────────────────
-function yanıtAc(yorumId) {
-  yanıtIdAcik = yanıtIdAcik === yorumId ? null : yorumId;
+function yanitAc(yorumId) {
+  yanitIdAcik = yanitIdAcik === yorumId ? null : yorumId;
   renderDetail();
 }
 
-function yanıtKapat() {
-  yanıtIdAcik = null;
+function yanitKapat() {
+  yanitIdAcik = null;
   renderDetail();
 }
 
-async function yanıtGonder(yorumId) {
-  const ta = document.getElementById("yanıtTA_" + yorumId);
+async function yanitGonder(yorumId) {
+  const ta = document.getElementById("yanitTA_" + yorumId);
   if (!ta?.value.trim()) return toast("Yanıt boş olamaz!", "err");
 
-  // Yanıtları in-memory'de yorum nesnesine ekle
-  const yorum = _yorumlar.find(y => y.id === yorumId);
-  if (yorum) {
-    if (!yorum.yanıtlar) yorum.yanıtlar = [];
-    yorum.yanıtlar.push({
-      userId: ADMIN_USER,
-      metin: ta.value.trim(),
-      tarih: new Date().toISOString()
-    });
+  if (USE_API) {
+    try {
+      await apiFetch("POST", `/api/yorumlar/${yorumId}?action=yanit`, { metin: ta.value.trim() });
+      toast("Yanıt gönderildi ✓");
+    } catch(e) { return toast(e.message, "err"); }
   } else {
-    // API modunda yorumu bul ve yanıt ekle (demo: yorumları cache'le)
-    if (!window._yanıtlar) window._yanıtlar = {};
-    if (!window._yanıtlar[yorumId]) window._yanıtlar[yorumId] = [];
-    window._yanıtlar[yorumId].push({
-      userId: ADMIN_USER,
-      metin: ta.value.trim(),
-      tarih: new Date().toISOString()
-    });
+    const yorum = _yorumlar.find(y => y.id === yorumId);
+    if (yorum) {
+      if (!yorum.yanitlar) yorum.yanitlar = [];
+      yorum.yanitlar.push({ userId: ADMIN_USER, metin: ta.value.trim(), tarih: new Date().toISOString() });
+    }
+    toast("Yanıt gönderildi ✓");
   }
 
-  yanıtIdAcik = null;
-  toast("Yanıt gönderildi ✓");
-  renderDetail();
+  yanitIdAcik = null;
+  await renderDetail();
 }
 
 // ── INIT ─────────────────────────────────────────────────────

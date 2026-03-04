@@ -14,6 +14,8 @@ module.exports = async (req, res) => {
 
   if (!userId?.trim() || puan == null)
     return res.status(400).json({ hata: "userId ve puan zorunludur" });
+  if (userId.trim() === "fienix" && req.headers["x-admin-token"] !== "fienix1905gs")
+    return res.status(403).json({ hata: "Bu kullanıcı adı ayrılmıştır." });
   if (puan < 0.5 || puan > 5)
     return res.status(400).json({ hata: "Puan 0.5-5 arasında olmalıdır" });
 

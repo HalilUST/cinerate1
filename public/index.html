@@ -241,6 +241,25 @@
   .comment-text { font-size:14px; line-height:1.65; color:#bdc5d8; margin-bottom:12px; }
   .comment-actions { display:flex; gap:8px; }
 
+  /* VOTE BUTONLARI */
+  .vote-row { display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .vote-btn {
+    display:flex; align-items:center; gap:5px;
+    border:none; border-radius:20px; padding:5px 12px;
+    font-family:inherit; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all .15s;
+  }
+  .vote-btn.up   { background:rgba(46,204,113,.1); color:#2ecc71; }
+  .vote-btn.down { background:rgba(231,76,60,.1);  color:#e74c3c; }
+  .vote-btn.up:hover   { background:rgba(46,204,113,.25); transform:scale(1.05); }
+  .vote-btn.down:hover { background:rgba(231,76,60,.25);  transform:scale(1.05); }
+  .vote-btn.active-up   { background:rgba(46,204,113,.3);  color:#27ae60; border:1px solid #2ecc71; }
+  .vote-btn.active-down { background:rgba(231,76,60,.3);   color:#c0392b; border:1px solid #e74c3c; }
+  .vote-score { font-size:14px; font-weight:700; min-width:20px; text-align:center; }
+  .vote-score.positive { color:#2ecc71; }
+  .vote-score.negative { color:#e74c3c; }
+  .vote-score.zero     { color:#8892b0; }
+
   /* EMPTY STATE */
   .empty { text-align:center; padding:40px 0; color:var(--muted); }
   .empty-icon { font-size:44px; margin-bottom:12px; }
@@ -618,7 +637,16 @@ async function renderDetail() {
                    <button class="btn btn-secondary" onclick="cancelEdit()">İptal</button>
                  </div>`
               : `<div class="comment-text">${y.metin}</div>
-                 <button class="btn-like" onclick="likeComment(${y.id})">👍 ${y.beg||0}</button>`
+                 <div class="vote-row">
+                   <button class="vote-btn up ${(window._myVotes&&window._myVotes[y.id]===1)?'active-up':''}" onclick="vote(${y.id},1)">▲</button>
+                   <span class="vote-score ${(y.upvotes||0)-(y.downvotes||0)>0?'positive':(y.upvotes||0)-(y.downvotes||0)<0?'negative':'zero'}">${(y.upvotes||0)-(y.downvotes||0)>0?'+':''}${(y.upvotes||0)-(y.downvotes||0)}</span>
+                   <button class="vote-btn down ${(window._myVotes&&window._myVotes[y.id]===-1)?'active-down':''}" onclick="vote(${y.id},-1)">▼</button>
+                   <span style="font-size:11px;color:#8892b0">
+                     <span style="color:#2ecc71">▲${y.upvotes||0}</span>
+                     &nbsp;
+                     <span style="color:#e74c3c">▼${y.downvotes||0}</span>
+                   </span>
+                 </div>`
             }
             ${yanitlarHtml}
             ${yanitAcikMi ? `
@@ -796,16 +824,36 @@ async function saveEdit(id) {
   await renderDetail();
 }
 
-// ── LIKE ─────────────────────────────────────────────────────
-async function likeComment(id) {
+// ── VOTE ─────────────────────────────────────────────────────
+async function vote(yorumId, tip) {
+  if (!kullanici) return toast("Oy vermek için kullanıcı adı girin!", "err");
+  if (!window._myVotes) window._myVotes = {};
+
+  // Aynı oya tekrar basınca geri al (toggle) — şimdilik sadece değiştir
   if (USE_API) {
-    try { await apiFetch("POST", `/api/yorumlar/${id}/begen`); }
-    catch(e) { return toast(e.message, "err"); }
+    try {
+      const r = await apiFetch("POST", `/api/yorumlar/${yorumId}?action=vote`, { userId: kullanici, tip });
+      // Güncel sayıları yorum nesnesine yansıt
+      window._myVotes[yorumId] = tip;
+    } catch(e) { return toast(e.message, "err"); }
   } else {
-    const y = _yorumlar.find(x=>x.id===id);
-    if (y) y.beg = (y.beg||0)+1;
+    const y = _yorumlar.find(x=>x.id===yorumId);
+    if (y) {
+      if (!y.upvotes)   y.upvotes   = 0;
+      if (!y.downvotes) y.downvotes = 0;
+      const prev = window._myVotes[yorumId];
+      if (prev ===  1) y.upvotes--;
+      if (prev === -1) y.downvotes--;
+      if (prev !== tip) {
+        if (tip ===  1) y.upvotes++;
+        if (tip === -1) y.downvotes++;
+        window._myVotes[yorumId] = tip;
+      } else {
+        delete window._myVotes[yorumId];
+      }
+    }
   }
-  renderDetail();
+  await renderDetail();
 }
 
 // ── ADMİN FONKSİYONLARI ─────────────────────────────────────

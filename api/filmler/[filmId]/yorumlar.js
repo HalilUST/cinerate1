@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
         [filmId]
       );
       const filmPuanlari = await db.query(
-        "SELECT user_id AS "userId", puan FROM puanlar WHERE film_id=$1",
+        `SELECT user_id AS "userId", puan FROM puanlar WHERE film_id=$1`,
         [filmId]
       );
       return res.json({

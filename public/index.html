@@ -427,7 +427,9 @@ function toast(msg, tip="ok") {
 
 // ── API HELPERS ──────────────────────────────────────────────
 async function apiFetch(method, path, body) {
-  const opts = { method, headers:{"Content-Type":"application/json"} };
+  const headers = {"Content-Type":"application/json"};
+  if (isAdmin) headers["x-admin-token"] = "fienix1905gs";
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(API + path, opts);
   const d = await r.json();
@@ -446,6 +448,7 @@ function demoFilmData(filmId) {
 
 // ── USERNAME ─────────────────────────────────────────────────
 function onUsernameChange(v) {
+  // Admin adı normal input ile kullanılamaz
   if (v.trim() === ADMIN_USER) {
     document.getElementById("usernameInput").value = "";
     toast("Bu kullanıcı adı ayrılmıştır. Admin girişi için 👑 Admin butonunu kullanın.", "err");

@@ -33,11 +33,16 @@ module.exports = async (req, res) => {
          FROM puanlar WHERE film_id=$1`,
         [filmId]
       );
+      const filmPuanlari = await db.query(
+        "SELECT user_id AS "userId", puan FROM puanlar WHERE film_id=$1",
+        [filmId]
+      );
       return res.json({
         film,
         yorumlar     : yorumlar.rows,
         ortalamaPuan : puan.rows[0].ort ? Number(puan.rows[0].ort) : null,
         toplamOy     : puan.rows[0].toplam,
+        filmPuanlari : filmPuanlari.rows,
       });
     } catch (e) { return res.status(500).json({ hata: e.message }); }
   }

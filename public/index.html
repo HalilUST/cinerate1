@@ -446,9 +446,15 @@ function demoFilmData(filmId) {
 
 // ── USERNAME ─────────────────────────────────────────────────
 function onUsernameChange(v) {
+  if (v.trim() === ADMIN_USER) {
+    document.getElementById("usernameInput").value = "";
+    toast("Bu kullanıcı adı ayrılmıştır. Admin girişi için 👑 Admin butonunu kullanın.", "err");
+    return;
+  }
   kullanici = v.trim();
+  isAdmin = false;
   const chip = document.getElementById("userChip");
-  if (kullanici) { chip.textContent = "● " + kullanici; chip.style.display="inline"; }
+  if (kullanici) { chip.textContent = "● " + kullanici; chip.style.display="inline"; chip.style.background=""; chip.style.borderColor=""; chip.style.color=""; }
   else chip.style.display = "none";
   if (aktifFilmId) renderDetail();
 }

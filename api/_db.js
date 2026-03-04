@@ -43,7 +43,7 @@ async function initDB() {
       id       SERIAL PRIMARY KEY,
       film_id  INT NOT NULL REFERENCES filmler(id) ON DELETE CASCADE,
       user_id  VARCHAR(100) NOT NULL,
-      puan     SMALLINT NOT NULL CHECK (puan BETWEEN 1 AND 5),
+      puan     NUMERIC(3,1) NOT NULL CHECK (puan BETWEEN 0.5 AND 5),
       UNIQUE (film_id, user_id)
     );
   `);

@@ -70,6 +70,14 @@ async function initDB() {
       metin      VARCHAR(1000) NOT NULL,
       tarih      TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS votes (
+      id         SERIAL PRIMARY KEY,
+      yorum_id   INT NOT NULL REFERENCES yorumlar(id) ON DELETE CASCADE,
+      user_id    VARCHAR(100) NOT NULL,
+      tip        SMALLINT NOT NULL CHECK (tip IN (1, -1)),
+      UNIQUE (yorum_id, user_id)
+    );
   `);
 
   const filmler = [

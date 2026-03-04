@@ -38,13 +38,19 @@ module.exports = async (req, res) => {
         [filmId]
       );
 
-      // Her yorumun yanitlarını getir
+      // Her yorumun yanitlarini ve vote'larini getir
       const yorumlarWithReplies = await Promise.all(yorumlar.rows.map(async y => {
         const replies = await db.query(
           `SELECT id, user_id AS "userId", metin, tarih FROM yanitlar WHERE yorum_id=$1 ORDER BY tarih ASC`,
           [y.id]
         );
-        return { ...y, yanitlar: replies.rows };
+        const votes = await db.query(
+          `SELECT tip, COUNT(*)::INT AS sayi FROM votes WHERE yorum_id=$1 GROUP BY tip`,
+          [y.id]
+        );
+        const upvotes   = votes.rows.find(r => r.tip ===  1)?.sayi || 0;
+        const downvotes = votes.rows.find(r => r.tip === -1)?.sayi || 0;
+        return { ...y, yanitlar: replies.rows, upvotes, downvotes };
       }));
 
       return res.json({

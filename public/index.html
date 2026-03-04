@@ -567,6 +567,8 @@ async function renderDetail() {
         const mine = y.userId === kullanici;
         const isAdminYorum = y.userId === ADMIN_USER;
         const tarih = new Date(y.tarih).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
+        const kullanicininPuani = puanlar.find(p => p.userId === y.userId);
+        const puanGoster = kullanicininPuani ? ` · ${'★'.repeat(Math.floor(kullanicininPuani.puan))}${kullanicininPuani.puan % 1 ? '½' : ''} ${kullanicininPuani.puan}/5` : '';
         const duzenleniyorMu = duzenlemeId === y.id;
         const yanıtAcikMi = yanıtIdAcik === y.id;
 
@@ -594,7 +596,7 @@ async function renderDetail() {
                     ${isAdminYorum ? `<span class="admin-badge">ADMİN</span>` : ""}
                     ${mine && !isAdminYorum ? `<span class="mine-badge">Sen</span>` : ""}
                   </div>
-                  <div class="comment-date">${tarih}${y.gunc?" · düzenlendi":""}</div>
+                  <div class="comment-date">${tarih}${y.gunc?" · düzenlendi":""}${puanGoster}</div>
                 </div>
               </div>
               <div style="display:flex;gap:7px">

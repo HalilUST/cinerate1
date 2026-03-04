@@ -5,10 +5,15 @@ let pool;
 
 function getPool() {
   if (!pool) {
+    // Vercel'in Neon DB'si CREATE_DATABASE_URL adıyla geliyor
+    const connectionString = process.env.DATABASE_URL || process.env.CREATE_DATABASE_URL;
+
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 5,
+      max: 3,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
     });
   }
   return pool;

@@ -13,6 +13,29 @@ module.exports = async (req, res) => {
   const yorumId = Number(req.query.yorumId);
   const db = await initDB();
 
+  // ── VOTE (upvote/downvote) ───────────────────────────────
+  if (req.method === "POST" && req.query.action === "vote") {
+    const { userId, tip } = req.body;
+    if (!userId?.trim()) return res.status(400).json({ hata: "userId zorunludur" });
+    if (tip !== 1 && tip !== -1) return res.status(400).json({ hata: "tip 1 veya -1 olmalı" });
+    try {
+      // Daha önce oy verdiyse güncelle, yoksa ekle
+      await db.query(
+        `INSERT INTO votes (yorum_id, user_id, tip) VALUES ($1,$2,$3)
+         ON CONFLICT (yorum_id, user_id) DO UPDATE SET tip = EXCLUDED.tip`,
+        [yorumId, userId.trim(), tip]
+      );
+      // Güncel sayıları döndür
+      const votes = await db.query(
+        `SELECT tip, COUNT(*)::INT AS sayi FROM votes WHERE yorum_id=$1 GROUP BY tip`,
+        [yorumId]
+      );
+      const upvotes   = votes.rows.find(r => r.tip ===  1)?.sayi || 0;
+      const downvotes = votes.rows.find(r => r.tip === -1)?.sayi || 0;
+      return res.json({ upvotes, downvotes });
+    } catch (e) { return res.status(500).json({ hata: e.message }); }
+  }
+
   // ── YANIT ────────────────────────────────────────────────
   if (req.method === "POST" && req.query.action === "yanit") {
     const adminToken = req.headers["x-admin-token"];

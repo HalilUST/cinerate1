@@ -37,9 +37,19 @@ module.exports = async (req, res) => {
         `SELECT user_id AS "userId", puan FROM puanlar WHERE film_id=$1`,
         [filmId]
       );
+
+      // Her yorumun yanitlarını getir
+      const yorumlarWithReplies = await Promise.all(yorumlar.rows.map(async y => {
+        const replies = await db.query(
+          `SELECT id, user_id AS "userId", metin, tarih FROM yanitlar WHERE yorum_id=$1 ORDER BY tarih ASC`,
+          [y.id]
+        );
+        return { ...y, yanitlar: replies.rows };
+      }));
+
       return res.json({
         film,
-        yorumlar     : yorumlar.rows,
+        yorumlar     : yorumlarWithReplies,
         ortalamaPuan : puan.rows[0].ort ? Number(puan.rows[0].ort) : null,
         toplamOy     : puan.rows[0].toplam,
         filmPuanlari : filmPuanlari.rows,

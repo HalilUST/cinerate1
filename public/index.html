@@ -511,24 +511,28 @@ async function renderDetail() {
       </div>
     </div>
 
-    <div class="two-col">
-      <!-- Puan Ver -->
-      <div>
-        <div class="section-title">⭐ ${benimPuanim ? "Puanınızı Güncelleyin" : "Puan Verin"}</div>
+    <!-- Birleşik Puan + Yorum Formu -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:28px">
+      <div class="section-title">✍️ ${benimPuanim ? "Puanını Güncelle & Yorum Yap" : "Puan Ver & Yorum Yap"}</div>
+
+      <!-- Yıldızlar -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:1px;text-transform:uppercase">Puanın</div>
         <div class="star-input" id="starRow">${puanHtml}</div>
-        ${benimPuanim ? `<div style="font-size:12px;color:var(--accent);margin-bottom:12px">Mevcut: ${"⭐".repeat(benimPuanim.puan)} (${benimPuanim.puan}/5)</div>` : ""}
-        <button class="btn btn-primary" onclick="submitRating()">${benimPuanim?"🔄 Güncelle":"✓ Puanı Kaydet"}</button>
+        ${benimPuanim ? `<div style="font-size:12px;color:var(--accent);margin-top:6px">Mevcut puanın: ${"⭐".repeat(benimPuanim.puan)} (${benimPuanim.puan}/5)</div>` : ""}
       </div>
 
-      <!-- Yorum Ekle -->
-      <div>
-        <div class="section-title">💬 Yorum Yap</div>
+      <!-- Yorum -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:1px;text-transform:uppercase">Yorumun (opsiyonel)</div>
         <textarea id="commentTA" placeholder="Filmi nasıl buldunuz? (max 1000 karakter)" maxlength="1000" oninput="document.getElementById('charCount').textContent=this.value.length+'/1000'"></textarea>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <span class="char-count" id="charCount">0/1000</span>
-          <button class="btn btn-primary" onclick="submitComment()">💬 Gönder</button>
-        </div>
+        <div style="text-align:right;margin-top:4px"><span class="char-count" id="charCount">0/1000</span></div>
       </div>
+
+      <!-- Tek Buton -->
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px" onclick="submitHepsi()">
+        ${benimPuanim ? "🔄 Güncelle & Gönder" : "🎬 Puan & Yorumu Gönder"}
+      </button>
     </div>
 
     <!-- Yorumlar -->
@@ -564,45 +568,46 @@ function selectStar(n) {
 }
 
 // ── SUBMIT RATING ────────────────────────────────────────────
-async function submitRating() {
+// ── SUBMIT HEPSİ (Puan + Yorum birlikte) ────────────────────
+async function submitHepsi() {
   if (!kullanici) return toast("Kullanıcı adı girin!", "err");
-  if (!seciliPuan) return toast("Puan seçin!", "err");
+  if (!seciliPuan) return toast("En az bir puan seçmelisiniz!", "err");
 
+  const ta = document.getElementById("commentTA");
+  const metin = ta?.value.trim();
+  let puanOk = false, yorumOk = false;
+
+  // Puanı gönder
   if (USE_API) {
     try {
-      const r = await apiFetch("POST",`/api/filmler/${aktifFilmId}/puanla`,{userId:kullanici,puan:seciliPuan});
-      toast("Puan kaydedildi ✓");
-    } catch(e) {
-      if (e.message.includes("puanId")) toast("Puan zaten var — demo modunda güncelleme simüle edildi","err");
-      else toast(e.message, "err");
-    }
+      await apiFetch("POST", `/api/filmler/${aktifFilmId}/puanla`, {userId:kullanici, puan:seciliPuan});
+      puanOk = true;
+    } catch(e) { toast(e.message, "err"); return; }
   } else {
     const m = _puanlar.find(p=>p.filmId===aktifFilmId&&p.userId===kullanici);
-    if (m) { m.puan = seciliPuan; toast("Puan güncellendi ✓"); }
-    else { _puanlar.push({id:_sayac++,filmId:aktifFilmId,userId:kullanici,puan:seciliPuan}); toast("Puan kaydedildi ✓"); }
+    if (m) m.puan = seciliPuan;
+    else _puanlar.push({id:_sayac++,filmId:aktifFilmId,userId:kullanici,puan:seciliPuan});
+    puanOk = true;
   }
+
+  // Yorum varsa gönder (opsiyonel)
+  if (metin) {
+    if (USE_API) {
+      try {
+        await apiFetch("POST", `/api/filmler/${aktifFilmId}/yorumlar`, {userId:kullanici, metin});
+        yorumOk = true;
+      } catch(e) { toast(e.message, "err"); return; }
+    } else {
+      _yorumlar.push({id:_sayac++,filmId:aktifFilmId,userId:kullanici,metin,tarih:new Date().toISOString(),beg:0,gunc:false});
+      yorumOk = true;
+    }
+  }
+
+  // Sonuç bildirimi
+  if (puanOk && yorumOk) toast("Puan ve yorum gönderildi ✓");
+  else if (puanOk) toast("Puan gönderildi ✓");
 
   seciliPuan = 0;
-  await refreshGrid();
-  await renderDetail();
-}
-
-// ── SUBMIT COMMENT ───────────────────────────────────────────
-async function submitComment() {
-  const ta = document.getElementById("commentTA");
-  if (!kullanici)      return toast("Kullanıcı adı girin!", "err");
-  if (!ta?.value.trim()) return toast("Yorum boş olamaz!", "err");
-
-  if (USE_API) {
-    try {
-      await apiFetch("POST",`/api/filmler/${aktifFilmId}/yorumlar`,{userId:kullanici,metin:ta.value});
-      toast("Yorum eklendi ✓");
-    } catch(e) { return toast(e.message,"err"); }
-  } else {
-    _yorumlar.push({id:_sayac++,filmId:aktifFilmId,userId:kullanici,metin:ta.value.trim(),tarih:new Date().toISOString(),beg:0,gunc:false});
-    toast("Yorum eklendi ✓");
-  }
-
   await refreshGrid();
   await renderDetail();
 }
